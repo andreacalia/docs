@@ -6,7 +6,7 @@ A `CompletableFuture` object is a "promise" (sometimes this terminology is used 
 
 ```java
 CompletableFuture<String> future = doAsyncRead();
-String result = future.get();
+String result = future.get(); // Bad practice
 ```
 
 In the example above, the `future.get()` method will block the caller Thread until the result of the `CompletableFuture` is available. This behavior make the usage of async computation totally useless! *The caller thread should never be blocked!*
@@ -24,17 +24,19 @@ future.whenComplete((String result, Throwable exception) -> {
 });
 ```
 
-The `CompletableFuture#whenComplete()` method forces the user to check whether the computation of the result produced an error or the result. In the successful case, the `Throwable` parameter will be null, therefore the result value will be present.
+The `CompletableFuture#whenComplete(...)` method forces the user to check whether the computation of the result produced an error or the result. In the successful case, the `Throwable` parameter will be `null`, therefore the result value will be present.
 
-The CompletableFuture API has multiple methods that allows the user to concatenate operations, handle errors, etc. Some of the most useful methods are:
+The CompletableFuture API has multiple methods that allows the user to concatenate operations (chaining), handle errors, etc. Some of the most useful methods are:
 
 * `.thenAccept(Consumer<T>)`: consumes the produced value of the chain.
-* `.thenApply(Function<T,U>)`: conceptually equivalent to map in stream processing.
+* `.thenApply(Function<T,U>)`: conceptually equivalent to _map_ in stream processing.
 * `.thenRun(Runnable)`: simply runs the `Runnable`.
-* `.thenCompose(Function<T,CompletionStage<U>>)`: conceptually equivalent to flatMap in stream processing.
-* `.whenComplete(Biconsumer<T,Throwable>)`: the specified `Biconsumer` accepts the value that was produced or the (first) exception that was thrown by previous stages in the chain.
+* `.thenCompose(Function<T,CompletionStage<U>>)`: conceptually equivalent to _flatMap_ in stream processing.
+* `.whenComplete(Biconsumer<T,Throwable>)`: the specified `Biconsumer` accepts the value that was produced or the (first) exception that was thrown by a previous stage in the chain.
 
-Every method is also available with the _async_ suffix: e.g. `.thenApplyAsync(Function<T,U>)` and `.thenApplyAsync(Function<T,U>,Executor)`. These variants are useful because all the subsequent chaining of a `CompletableFuture` are executed on the same Thread that executes the first action. As an example:
+Every method presented above is also available with the _async_ suffix: e.g. `.thenApplyAsync(Function<T,U>)` and `.thenApplyAsync(Function<T,U>, Executor)`. 
+
+The _async_ variants are useful because by default all the subsequent chaining of a `CompletableFuture` are executed on the same Thread that executes the first action. As an example:
 
 ```java
 CompletableFuture<String> asd = CompletableFuture.supplyAsync(() -> {
@@ -67,8 +69,14 @@ Produces as output:
 [ForkJoinPool.commonPool-worker-1] - Result: Hello from the future!
 ```
 
-`ForkJoinPool` is a common Thread pool in which all the specified operations are executed on. Each operation specified on a method with suffix _async_ can be executed on a new or re-used Thread of the pool. In the previous example, the only _async_ method is the `.supplyAsync(...)` and all the subsequent operations are executed on the same Thread that prints _"Producer"_ on the console. Every _async_ operation switches the Thread that execute the operation (and the subsequent ones until another _async_ is specified).
-Depending on the situation, it is necessary to specify the Thread on which operations are executed (Thread bound synchronization, listeners, etc...). In order to achieve this, every _async_ method has an overloaded version that accepts a `Executor` that will be used to execute the operation and the subsequent, chained, ones.
+`ForkJoinPool` is a common Thread pool in which, by default, all the operations are executed on. Each operation specified on a method with suffix _async_ can be executed on a new or re-used Thread of the pool.
+
+In the previous example, the only _async_ method is the `.supplyAsync(...)` and all the subsequent operations are executed on the same Thread that prints _"Producer"_ on the console.
+
+Every _async_ operation switches the Thread that execute the operation (and the subsequent ones until another _async_ is specified).
+
+Depending on the situation, it is necessary to specify the Thread on which operations are executed (Thread bound synchronization, listeners, etc.). In order to achieve this, every _async_ method has an overloaded version that accepts a `Executor` that will be used to execute the operation and the subsequent, chained, ones.
+
 A fully asynchronous version of the example above will look like:
 
 ```java
@@ -93,7 +101,7 @@ CompletableFuture.supplyAsync(() -> {
 }, resultExecutor);
 ```
 
-The execution prints the following to the console:
+The execution produces the following:
 
 ```
 [producer-0] - Producer
@@ -112,7 +120,7 @@ This is a common anti-pattern since using an API that exposes a `CompletableFutu
 
 ## Case study: designing remote APIs
 
-As explained in this article, `CompletableFuture` is useful when an API need to perform expensive or long operation without blocking the caller Thread and providing, eventually, a result sometime in the future. This matching quite well the design of remote services that an application may need to access. As an example, the developer needs to access some Twitter API and she may decide to create an interface for that:
+As explained in this article, `CompletableFuture` is useful when an API need to perform expensive or long operation without blocking the caller Thread and providing, eventually, a result sometime in the future. This matches quite well the design of remote services that an application may need to access. As an example, the developer needs to access some Twitter API and she may decide to create an interface for that:
 
 ```java
 public interface TwitterService {
@@ -123,7 +131,7 @@ public interface TwitterService {
 
 Each method of the `TwitterService` need to access the Twitter Rest API and this is not a synchronous operation. The results will be available at some point in the future when the API answer with a result.
 
-When using the API a common pattern is to use the `.whenComplete(...)` to access the results. In this case it is important to remember to use the _async_ version of the `CompletableFuture` API in order not to block the service's internal Thread pool (in case there is one).
+When using the API a common pattern is to use the `.whenCompleteAsync(...)` to access the results. In this case it is important to remember to use the _async_ version of the `CompletableFuture` API in order not to block the service's internal Thread pool (in case there is one).
 
 ### Services internal Thread pool
 
