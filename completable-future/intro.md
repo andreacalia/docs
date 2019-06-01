@@ -1,3 +1,16 @@
+---
+title: Introduction to CompletableFuture
+slug: introduction-to-completable-future
+description: Introduction to Java asynchronous programming using CompletableFuture
+categories:
+  - Article
+  - Java
+tags:
+  - java
+  - programming
+  - async
+---
+
 # Introduction to `CompletableFuture`
 
 `CompletableFuture` class is introduced in Java 8<sup>[1](#javadoc)</sup> and it is used to make asynchronous computation easier to code.
@@ -6,7 +19,7 @@ A `CompletableFuture` object is a "promise" (sometimes this terminology is used 
 
 ```java
 CompletableFuture<String> future = doAsyncRead();
-String result = future.get(); // Bad practice
+String result = future.get(); // Warning: Bad practice
 ```
 
 In the example above, the `future.get()` method will block the caller Thread until the result of the `CompletableFuture` is available. This behavior make the usage of async computation totally useless! *The caller thread should never be blocked!*
